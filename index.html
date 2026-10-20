@@ -76,7 +76,7 @@ p{margin:0}
 .brand{display:flex;align-items:center;gap:10px}
 .mark{flex:none;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-family:var(--f-display);font-weight:800;font-size:19px}
 .brand h1{font-family:var(--f-display);font-weight:700;font-size:17px;letter-spacing:-.01em}
-.brand p{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2);letter-spacing:.02em}
+.brand p{margin-left:auto;font-family:var(--f-mono);font-size:12px;color:var(--ink-2);letter-spacing:.02em}
 .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface-2);border:1px solid var(--rule);border-radius:12px;padding:3px}
 .tab{border:0;background:transparent;border-radius:9px;padding:8px 0;font-weight:600;font-size:14px;color:var(--ink-2)}
 .tab[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
@@ -252,6 +252,12 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;f
 .toast{pointer-events:auto;display:flex;align-items:center;gap:14px;background:var(--ink);color:var(--paper);border-radius:14px;padding:12px 14px 12px 16px;font-weight:600;max-width:520px;box-shadow:0 12px 30px -12px rgba(0,0,0,.45)}
 .toast-act{border:0;background:transparent;color:var(--paper);font-weight:700;text-decoration:underline;text-underline-offset:3px;padding:4px}
 
+details.more>summary{cursor:pointer;font-size:13.5px;font-weight:600;color:var(--accent);list-style:none;padding:6px 0}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"+ "}
+details.more[open]>summary::before{content:"− "}
+details.more>div{display:flex;flex-direction:column;gap:12px;padding-top:8px}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .danger-zone{border:1px solid color-mix(in srgb,var(--stamp) 35%,var(--rule));background:transparent;box-shadow:none}
 @media (prefers-reduced-motion: reduce){*{animation:none!important}}
 </style>
@@ -262,7 +268,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;f
   <div class="wrap">
     <div class="brand">
       <span class="mark" aria-hidden="true">円</span>
-      <div><h1>Japan Spend Tracker</h1><p id="sub">Trip budget</p></div>
+      <h1>Japan Spend</h1><p id="sub"></p>
     </div>
     <nav class="tabs" aria-label="Screens">
       <button class="tab" data-act="tab" data-view="home" aria-current="page">Home</button>
@@ -278,8 +284,8 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;f
   <div class="wrap">
     <div class="strip" id="scan-strip" hidden><span class="spin" aria-hidden="true"></span><span id="scan-text">Reading…</span></div>
     <div class="row">
-      <button class="btn primary" id="btn-scan" data-act="scan">Scan receipts</button>
-      <button class="btn" id="btn-quick" data-act="quick">Quick add</button>
+      <button class="btn primary" id="btn-scan" data-act="scan">Scan</button>
+      <button class="btn" id="btn-quick" data-act="quick">Add</button>
     </div>
   </div>
 </nav>
@@ -298,7 +304,7 @@ const DKEY = "jst-data-v1";
 const KEY_KEY = "jst-api-key";
 const CHECK_KEY = "jst-departure-v1";
 const API_URL = "https://api.anthropic.com/v1/messages";
-const MODELS = [["claude-opus-5-5", "Claude Opus 5.5 (most accurate)"], ["claude-sonnet-5-5", "Claude Sonnet 5.5 (cheaper)"]];
+const MODELS = [["claude-opus-5-5", "Opus 5.5 (best)"], ["claude-sonnet-5-5", "Sonnet 5.5 (cheaper)"]];
 const HINT_LINE = { food: "food_transport", transit: "food_transport", cards: "cards", clothes: "you", gift: "hannah" };
 const HINT_SUB = { food: "food", transit: "transit" };
 const KNOWN_LINES = ["cards", "hannah", "food_transport", "you"];
@@ -490,7 +496,7 @@ function metrics() {
 function render() {
   document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-current", b.dataset.view === S.view ? "page" : "false"));
   const st = DB.settings;
-  $("#sub").textContent = `${fmtShort(st.trip_start)} – ${fmtShort(st.trip_end)} · ¥${st.rate_jpy_per_usd} per $1`;
+  $("#sub").textContent = `${fmtShort(st.trip_start)} – ${fmtShort(st.trip_end)}`;
   const main = $("#main");
   if (S.view === "settings") { if (!S.settingsDirty || !$("#settings-form")) main.innerHTML = viewSettings(); }
   else main.innerHTML = S.view === "log" ? viewLog() : viewHome();
@@ -503,17 +509,17 @@ function renderActions() {
   const strip = $("#scan-strip");
   if (S.scan) {
     strip.hidden = false;
-    $("#scan-text").textContent = `Reading ${Math.min(S.scan.started, S.scan.total)} of ${S.scan.total}… up to a minute each`;
+    $("#scan-text").textContent = `Reading ${Math.min(S.scan.started, S.scan.total)} of ${S.scan.total}…`;
   } else strip.hidden = true;
 }
 
 function viewHome() {
   const m = metrics(), out = [];
-  if (!isStandalone()) out.push(`<div class="notice install"><b>Put this on your Home Screen</b><span class="small">In Safari, tap the Share button, then <b>Add to Home Screen</b>. It then opens full screen like an app and works offline.</span></div>`);
+  if (!isStandalone()) out.push(`<div class="notice install"><span class="small">Tap Share → <b>Add to Home Screen</b> to install.</span></div>`);
   if (m.t >= addDays(DB.settings.trip_end, -1) && m.t <= DB.settings.trip_end) out.push(departureCard(m));
   const nd = D().length;
-  if (nd) out.push(`<button class="notice" data-act="review"><span class="n">${nd}</span><span>${nd === 1 ? "receipt" : "receipts"} to review</span><span class="go">Review →</span></button>`);
-  out.push(heroToday(m), linesCard(m), paceCard(m));
+  if (nd) out.push(`<button class="notice" data-act="review"><span class="n">${nd}</span><span>to review</span><span class="go">Review →</span></button>`);
+  out.push(heroToday(m), linesCard(m));
   if (m.refundCount || m.t >= TAX_SWITCH) out.push(refundCard(m));
   out.push(cashCard(m));
   return out.join("");
@@ -527,31 +533,27 @@ function city(t) {
 function heroToday(m) {
   if (m.phase === "before") {
     return `<section class="hero">
-      <div class="eyebrow"><span>食費 · Daily food allowance</span><span>Starts in ${m.startIn} ${m.startIn === 1 ? "day" : "days"}</span></div>
+      <div class="eyebrow"><span>Food per day</span><span>In ${m.startIn} ${m.startIn === 1 ? "day" : "days"}</span></div>
       <div class="big">${yen(m.allowance)}</div>
-      <div class="big-label">${usd(m.allowance / m.rate)} a day for ${m.tripDays} days</div>
-      <div class="perf"></div>
-      <div class="hero-row"><span>Food budget <b>${yen(m.foodBudget)}</b></span><span>Fixed transit <b>${yen(m.fixed)}</b></span></div>
-      <p class="hero-note">Food + transport is ${yen(m.foodBudget + m.fixed)}. Shinkansen, airport transfers and local transit come out first.</p>
+      <div class="big-label">${usd(m.allowance / m.rate)} · ${m.tripDays} days</div>
     </section>`;
   }
   if (m.phase === "after") {
     return `<section class="hero">
-      <div class="eyebrow"><span>旅の合計 · Trip total</span><span>Trip complete</span></div>
+      <div class="eyebrow"><span>Trip total</span></div>
       <div class="big">${yen(m.totalSpent)}</div>
-      <div class="big-label">of ${yen(m.totalBud)} · ${usd(sum(m.lines, "spentU"))} at the rates you logged</div>
+      <div class="big-label">of ${yen(m.totalBud)} · ${usd(sum(m.lines, "spentU"))}</div>
     </section>`;
   }
   const left = m.allowance - m.foodToday, over = left < 0;
   const pct = m.allowance > 0 ? Math.min(m.foodToday / m.allowance, 1) : 1;
   return `<section class="hero ${over ? "is-over" : ""}">
-    <div class="eyebrow"><span>本日の食費 · Food today</span><span>Day ${m.dayIdx} of ${m.tripDays} · ${esc(city(m.t))}</span></div>
+    <div class="eyebrow"><span>Food today</span><span>Day ${m.dayIdx}/${m.tripDays} · ${esc(city(m.t))}</span></div>
     <div class="big">${yen(Math.abs(left))}</div>
-    <div class="big-label">${over ? "over today's food allowance" : "left for food today"} · ${usd(Math.abs(left) / m.rate)}</div>
+    <div class="big-label">${over ? "over" : "left"} · ${usd(Math.abs(left) / m.rate)}</div>
     <div class="perf"></div>
     <div class="meter" aria-hidden="true"><i style="width:${(pct * 100).toFixed(1)}%"></i></div>
-    <div class="hero-row"><span>Spent <b>${yen(m.foodToday)}</b></span><span>Allowance <b>${yen(m.allowance)}</b></span></div>
-    <p class="hero-note">${yen(Math.max(0, m.foodBudget - m.foodBefore))} of food budget left ÷ ${m.daysLeft} ${m.daysLeft === 1 ? "day" : "days"}, today included.</p>
+    <div class="hero-row"><span>${yen(m.foodToday)} spent</span><span>of ${yen(m.allowance)}</span></div>
   </section>`;
 }
 function linesCard(m) {
@@ -560,56 +562,45 @@ function linesCard(m) {
     return `<li class="line ${l.over ? "over" : ""}" style="--c:${lineColor(l.id)}">
       <div class="line-top"><span class="line-name">${esc(l.name)}</span><span class="line-rem">${l.over ? "Over by " + yen(-l.remJ) : yen(l.remJ) + " left"}</span></div>
       <div class="bar" aria-hidden="true"><i style="width:${(pct * 100).toFixed(1)}%"></i></div>
-      <div class="line-sub"><span>${yen(l.spentJ)} of ${yen(l.budJ)}</span><span>${usd(l.spentU, 0)} of ${usd(l.budget_usd, 0)} · ${l.over ? usd(-l.remU, 0) + " over" : usd(l.remU, 0) + " left"}</span></div>
-      ${l.id === "food_transport" ? `<div class="line-split">Food ${yen(m.foodSpent)} of ${yen(m.foodBudget)} · Transit ${yen(m.transitSpent)} of ${yen(m.fixed)} planned</div>` : ""}
+      <div class="line-sub"><span>${yen(l.spentJ)} of ${yen(l.budJ)}</span><span>${l.over ? usd(-l.remU, 0) + " over" : usd(l.remU, 0) + " left"}</span></div>
     </li>`;
   }).join("");
-  return `<section class="card"><h2 class="h">Budget lines</h2><ul class="lines">${items}</ul>
-    <div class="total-row"><span>Total ${yen(m.totalSpent)} of ${yen(m.totalBud)}</span><span>${yen(m.totalBud - m.totalSpent)} left</span></div></section>`;
+  return `<section class="card"><div class="card-head"><h2 class="h">Budget</h2>${pacePill(m)}</div><ul class="lines">${items}</ul>
+    <div class="total-row"><span>${yen(m.totalSpent)} of ${yen(m.totalBud)}</span><span>${yen(m.totalBud - m.totalSpent)} left</span></div></section>`;
 }
-function paceCard(m) {
-  const sp = Math.round(m.pctSpent * 100), tp = Math.round(m.pctTrip * 100), diff = sp - tp;
-  const label = m.phase === "before" ? `Trip starts ${fmtShort(DB.settings.trip_start)}` : m.phase === "after" ? "Trip over" : `Day ${m.dayIdx} of ${m.tripDays}`;
-  let pill;
-  if (m.phase === "before") pill = sp > 0 ? `<span class="pill info">${sp}% spent before landing</span>` : `<span class="pill info">Nothing spent yet</span>`;
-  else if (diff > 10) pill = `<span class="pill bad">Spending ${diff} points ahead of the calendar</span>`;
-  else if (diff > 3) pill = `<span class="pill warn">A little ahead: ${diff} points</span>`;
-  else pill = `<span class="pill good">On pace</span>`;
-  return `<section class="card"><div class="eyebrow"><span>Pace</span><span>${label}</span></div>
-    <div class="pace-grid">
-      <span>Spent</span><div class="bar"><i style="width:${Math.min(sp, 100)}%"></i></div><b>${sp}%</b>
-      <span>Trip</span><div class="bar trip"><i style="width:${tp}%"></i></div><b>${tp}%</b>
-    </div>${pill}</section>`;
+function pacePill(m) {
+  if (m.phase !== "during") return "";
+  const diff = Math.round(m.pctSpent * 100) - Math.round(m.pctTrip * 100);
+  if (diff > 10) return `<span class="pill bad">${diff} pts ahead</span>`;
+  if (diff > 3) return `<span class="pill warn">${diff} pts ahead</span>`;
+  return `<span class="pill good">On pace</span>`;
 }
 function refundCard(m) {
-  return `<section class="card"><div class="eyebrow"><span>免税 · Tax refund pending</span><span>${m.refundCount} ${m.refundCount === 1 ? "purchase" : "purchases"}</span></div>
-    <div class="stat"><div><div class="v">${yen(m.refund)}</div><div class="u">${usd(m.refund / m.rate)} fronted until the refund comes back</div></div></div>
-    <p class="small muted">From Nov 1 you pay the full price and claim the 10% back at customs when you leave. Eligible: ¥5,000+ before tax, same store, same day.</p></section>`;
+  return `<section class="card"><div class="eyebrow"><span>Tax refund due</span><span>${m.refundCount} ${m.refundCount === 1 ? "purchase" : "purchases"}</span></div>
+    <div class="stat"><div><div class="v">${yen(m.refund)}</div><div class="u">${usd(m.refund / m.rate)} · claim at customs</div></div></div></section>`;
 }
 function cashCard(m) {
   const lc = m.lastCount;
-  const counted = lc ? `Last counted ${fmtWhen(lc.created_at)}: ${yen(lc.amount_jpy)}` : "Wallet not counted yet";
-  return `<section class="card"><div class="eyebrow"><span>現金 · Cash on hand</span><span>Expected</span></div>
-    <div class="stat"><div><div class="v">${yen(m.expectedCash)}</div><div class="u">${yen(m.cashIn)} in − ${yen(m.cashSpent)} cash spends</div></div></div>
-    <p class="small muted">${esc(counted)}</p>
-    <div class="btn-row"><button class="btn" data-act="cash" data-tab="in">Add cash</button><button class="btn" data-act="cash" data-tab="count">Count wallet</button></div></section>`;
+  return `<section class="card"><div class="eyebrow"><span>Cash on hand</span>${lc ? `<span>Counted ${yen(lc.amount_jpy)}</span>` : ""}</div>
+    <div class="stat"><div class="v">${yen(m.expectedCash)}</div></div>
+    <div class="btn-row"><button class="btn" data-act="cash" data-tab="in">Add cash</button><button class="btn" data-act="cash" data-tab="count">Count</button></div></section>`;
 }
 function departureCard(m) {
   let done = {}; try { done = JSON.parse(localStorage.getItem(CHECK_KEY) || "{}"); } catch {}
   const items = [
-    ["customs", "At Haneda, do the customs step before check-in: a customs terminal or Visit Japan Web."],
-    ["items", "Keep every item from refund purchases with you. Customs may ask to see them."],
-    ["passport", "Have your passport ready. It's linked to each tax-free purchase."],
-    ["method", `The refund (${yen(m.refund)}) is paid back by each store's own method. Note which ones.`],
+    ["customs", "Customs step before check-in"],
+    ["items", "Refund items in carry-on"],
+    ["passport", "Passport ready"],
+    ["method", `Refund ${yen(m.refund)}: note each store's method`],
   ];
-  return `<section class="card"><div class="eyebrow"><span>出国 · Departure checklist</span><span>Haneda · ${fmtShort(DB.settings.trip_end)}</span></div>
+  return `<section class="card"><div class="eyebrow"><span>Before you fly</span><span>Haneda · ${fmtShort(DB.settings.trip_end)}</span></div>
     ${items.map(([k, t]) => `<label class="check"><input type="checkbox" id="chk-${k}" data-check="${k}" ${done[k] ? "checked" : ""}><span>${esc(t)}</span></label>`).join("")}</section>`;
 }
 
 /* ---------- log ---------- */
 function viewLog() {
   const f = S.filter;
-  const chips = [["all", "All"], ...lines().map(l => [l.id, l.name]), ["cash", "Cash in/counts"]]
+  const chips = [["all", "All"], ...lines().map(l => [l.id, l.name]), ["cash", "Cash"]]
     .map(([v, l]) => `<button class="fchip" data-act="filter" data-v="${esc(v)}" aria-pressed="${f === v}">${esc(l)}</button>`).join("");
   let list = E().map(e => ({ kind: "exp", ...e }));
   const cashRows = C().map(c => ({ kind: "cash", ...c }));
@@ -619,7 +610,7 @@ function viewLog() {
   list.sort((a, b) => (b.date || "").localeCompare(a.date || "") || String(b.created_at || "").localeCompare(String(a.created_at || "")));
   if (!list.length) {
     return `<div class="filters">${chips}</div>
-      <div class="empty"><h2>Nothing logged ${f === "all" ? "yet" : "here yet"}</h2><p>Scan a receipt or use Quick add. Entries show up here grouped by day, newest first. Tap one to edit it.</p></div>`;
+      <div class="empty"><h2>Nothing yet</h2></div>`;
   }
   const groups = [];
   for (const r of list) { const last = groups[groups.length - 1]; if (last && last.date === r.date) last.rows.push(r); else groups.push({ date: r.date, rows: [r] }); }
@@ -655,46 +646,41 @@ function cashRow(c) {
 function viewSettings() {
   const st = DB.settings, fx = st.fixed_transit_jpy || {}, key = apiKey();
   return `<form id="settings-form" class="card" autocomplete="off">
-    <h2 class="h">Receipt scanning</h2>
-    <label class="field"><span>Anthropic API key</span><input class="input" id="set-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-…" value="${esc(key)}"></label>
+    <h2 class="h">Scanning</h2>
+    <label class="field"><span>API key</span><input class="input" id="set-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-…" value="${esc(key)}"></label>
     <label class="field"><span>Model</span><select class="input" id="set-model">${MODELS.map(([v, l]) => `<option value="${v}" ${st.model === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     <div class="btn-row"><button type="button" class="btn" data-act="test-key">Test key</button></div>
     <p class="small" id="key-status"></p>
-    <p class="small muted">The key stays on this phone and is sent only to Anthropic. It isn't included in backups. Scans are billed to your Anthropic account.</p>
-    <h2 class="h">Exchange rate</h2>
+    <h2 class="h">Budget</h2>
     <div class="grid2">
       <label class="field"><span>Yen per $1</span><input class="input" id="set-rate" inputmode="decimal" value="${esc(st.rate_jpy_per_usd)}"></label>
       <label class="field"><span>Rate date</span><input class="input" id="set-rate-date" type="date" value="${esc(st.rate_date || "")}"></label>
+      ${lines().map(l => `<label class="field"><span>${esc(l.name)} ($)</span><input class="input" id="set-budget-${esc(l.id)}" inputmode="decimal" value="${esc(l.budget_usd)}"></label>`).join("")}
     </div>
-    <p class="small muted">New entries use the rate in force when they're logged. Entries you already saved keep theirs.</p>
-    <h2 class="h">Budget lines (USD)</h2>
-    <div class="grid2">${lines().map(l => `<label class="field"><span>${esc(l.name)}</span><input class="input" id="set-budget-${esc(l.id)}" inputmode="decimal" value="${esc(l.budget_usd)}"></label>`).join("")}</div>
-    <h2 class="h">Fixed transit (yen)</h2>
-    <div class="grid2">
-      <label class="field"><span>Shinkansen</span><input class="input" id="set-fx-shinkansen" inputmode="numeric" value="${esc(fx.shinkansen ?? 0)}"></label>
-      <label class="field"><span>Airport transfers</span><input class="input" id="set-fx-airport" inputmode="numeric" value="${esc(fx.airport ?? 0)}"></label>
-      <label class="field"><span>Local transit estimate</span><input class="input" id="set-fx-local" inputmode="numeric" value="${esc(fx.local_est ?? 0)}"></label>
-      <label class="field"><span>Card label</span><input class="input" id="set-card" value="${esc(st.card_label || "Card")}"></label>
-    </div>
-    <h2 class="h">Quick add categories</h2>
-    <div id="cat-list" style="display:flex;flex-direction:column;gap:8px">${cats().map(catRow).join("")}</div>
-    <button type="button" class="btn ghost" data-act="cat-add">Add category</button>
+    <details class="more"><summary>Transit, card label, categories</summary><div>
+      <div class="grid2">
+        <label class="field"><span>Shinkansen ¥</span><input class="input" id="set-fx-shinkansen" inputmode="numeric" value="${esc(fx.shinkansen ?? 0)}"></label>
+        <label class="field"><span>Airport ¥</span><input class="input" id="set-fx-airport" inputmode="numeric" value="${esc(fx.airport ?? 0)}"></label>
+        <label class="field"><span>Local transit ¥</span><input class="input" id="set-fx-local" inputmode="numeric" value="${esc(fx.local_est ?? 0)}"></label>
+        <label class="field"><span>Card label</span><input class="input" id="set-card" value="${esc(st.card_label || "Card")}"></label>
+      </div>
+      <span class="lbl">Quick add categories</span>
+      <div id="cat-list" style="display:flex;flex-direction:column;gap:8px">${cats().map(catRow).join("")}</div>
+      <button type="button" class="btn ghost" data-act="cat-add">Add category</button>
+    </div></details>
     <p class="err" id="set-err"></p>
-    <button type="submit" class="btn primary">Save settings</button>
-    <p class="small muted">Trip: ${fmtShort(st.trip_start)} – ${fmtShort(st.trip_end)}, ${esc(st.tz)}.</p>
+    <button type="submit" class="btn primary">Save</button>
   </form>
-  <section class="card"><h2 class="h">Export and backup</h2>
-    <p class="small muted">Your entries live only on this phone. Export a CSV to share with Claude for briefings, and save a backup now and then.</p>
-    <div class="btn-row"><button class="btn" data-act="export">Export CSV</button><button class="btn" data-act="backup">Save backup</button></div>
-    <button class="btn ghost" data-act="restore">Restore from backup</button>
-    <p class="small muted">Backups hold every entry and setting but not receipt photos or your API key.</p></section>
-  <section class="card danger-zone"><h2 class="h">Before you fly</h2><p class="small muted">Clear out test data: every expense, draft, cash row and receipt photo. Settings and your API key stay.</p>
+  <section class="card"><h2 class="h">Data</h2>
+    <div class="btn-row"><button class="btn" data-act="export">Export CSV</button><button class="btn" data-act="backup">Backup</button></div>
+    <button class="btn ghost" data-act="restore">Restore backup</button></section>
+  <section class="card danger-zone">
     <button class="btn ghost danger-text" data-act="wipe">Delete all entries</button></section>`;
 }
 function catRow(c) {
   return `<div class="cat-row">
     <input class="cat-label" value="${esc(c.label)}" aria-label="Category name">
-    <select class="cat-line" aria-label="Budget line"><option value="">Pick when saving</option>${lines().map(l => `<option value="${esc(l.id)}" ${c.line === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select>
+    <select class="cat-line" aria-label="Budget line"><option value="">Ask each time</option>${lines().map(l => `<option value="${esc(l.id)}" ${c.line === l.id ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select>
     <button type="button" class="icon-btn" data-act="cat-del" aria-label="Remove category">×</button>
     <select class="cat-sub" aria-label="Food or transit" ${c.line === "food_transport" ? "" : "hidden"}><option value="food" ${c.sub !== "transit" ? "selected" : ""}>Food</option><option value="transit" ${c.sub === "transit" ? "selected" : ""}>Transit</option></select>
   </div>`;
@@ -721,7 +707,7 @@ function saveSettings() {
   try { localStorage.setItem(KEY_KEY, $("#set-key").value.trim()); } catch {}
   if (!persist()) return;
   S.settingsDirty = false; render();
-  toast("Settings saved");
+  toast("Saved");
 }
 
 /* ---------- Claude receipt reading ---------- */
@@ -772,7 +758,7 @@ async function testKey() {
   st.className = "small muted"; st.textContent = "Checking…";
   try {
     await callClaude("Reply with OK.", 256, key);
-    st.className = "small ok"; st.textContent = "Key works. Tap Save settings to keep it.";
+    st.className = "small ok"; st.textContent = "Key works. Tap Save.";
   } catch (e) { st.className = "small err"; st.textContent = scanError(e.code, e.message); }
 }
 function scanError(code, msg) {
@@ -781,7 +767,7 @@ function scanError(code, msg) {
     auth: "That API key isn't working. Check it in Settings.",
     credit: "Your Anthropic credit has run out. Add credit at console.anthropic.com.",
     rate_limited: "Too many scans right now. Try again in a minute.",
-    network: "Scanning needs a connection. Your photos stay in the camera roll; scan them once you have signal.",
+    network: "No signal. Scan once you're back online.",
     overloaded: "Claude is busy right now. Try again in a minute.",
     refused: "Claude declined to read that image.",
   }[code] || ("Something went wrong" + (msg ? ": " + msg : "."));
@@ -808,14 +794,11 @@ const payOpts = () => [["cash", "Cash"], ["card", DB.settings.card_label || "Car
 
 function openNoKey() {
   openSheet("nokey", `
-    <header class="sheet-head"><h2>Set up receipt scanning</h2><button class="x" data-act="close">Close</button></header>
-    <p class="muted">Scanning sends the photo to Claude through your own Anthropic account. Quick add works without this.</p>
+    <header class="sheet-head"><h2>Add an API key</h2><button class="x" data-act="close">Close</button></header>
     <ol class="steps">
-      <li>Go to <b>console.anthropic.com</b> and sign up.</li>
-      <li>Under <b>Billing</b>, add some credit. Each scan costs a few cents.</li>
-      <li>Optional: under <b>Limits</b>, set a monthly spend limit.</li>
-      <li>Under <b>API keys</b>, create a key and copy it.</li>
-      <li>Paste it in <b>Settings → Anthropic API key</b>, tap <b>Test key</b>, then <b>Save settings</b>.</li>
+      <li><b>console.anthropic.com</b> → Billing: add credit</li>
+      <li>API keys: create one, copy it</li>
+      <li>Paste in Settings → Test key → Save</li>
     </ol>
     <button class="btn primary" data-act="go-settings">Go to Settings</button>`);
 }
@@ -824,16 +807,16 @@ function openNoKey() {
 function openQuick() {
   S.qa = { qty: 1 };
   const sh = openSheet("quick", `
-    <header class="sheet-head"><h2>Quick add</h2><button class="x" data-act="close">Close</button></header>
+    <header class="sheet-head"><h2>Add</h2><button class="x" data-act="close">Close</button></header>
     <label class="amt"><b>¥</b><input id="qa-amt" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-label="Amount in yen"></label>
     <div class="qty"><span>Count</span><button type="button" class="icon-btn" data-act="qa-minus" aria-label="One fewer">−</button><output id="qa-qty">1</output><button type="button" class="icon-btn" data-act="qa-plus" aria-label="One more">+</button><span class="total" id="qa-total"></span></div>
     ${seg("qa-cat", cats().map((c, i) => [String(i), c.label]), "")}
-    <div id="qa-other" class="field" hidden><span>Which line?</span>${seg("qa-line", lines().map(l => [l.id, l.name]), "")}<div id="qa-sub-wrap" hidden>${seg("qa-sub", [["food", "Food"], ["transit", "Transit"]], "food")}</div></div>
+    <div id="qa-other" class="field" hidden><span>Line</span>${seg("qa-line", lines().map(l => [l.id, l.name]), "")}<div id="qa-sub-wrap" hidden>${seg("qa-sub", [["food", "Food"], ["transit", "Transit"]], "food")}</div></div>
     <div class="grid2">
       <div class="field"><span>Paid with</span>${seg("qa-pay", payOpts(), "cash")}</div>
-      <label class="field"><span>Date (Japan)</span><input class="input" type="date" id="qa-date" value="${today()}"></label>
+      <label class="field"><span>Date</span><input class="input" type="date" id="qa-date" value="${today()}"></label>
     </div>
-    <p class="hint warn" id="qa-ic-hint" hidden>IC spends were already counted when you topped up. Only log this if it's a top-up.</p>
+    <p class="hint warn" id="qa-ic-hint" hidden>IC spends count at top-up. Skip unless this is a top-up.</p>
     <p class="err" id="qa-err"></p>
     <button class="btn primary" data-act="qa-save" style="min-height:56px;font-size:17px">Save</button>`);
   $("#qa-amt").focus();
@@ -883,28 +866,31 @@ function itemRow(it = {}) {
 }
 function entryForm(d, mode) {
   const parts = [];
-  if (d.photo) parts.push(`<button type="button" class="photo" data-act="lightbox" data-photo-id="${esc(d.photo)}"><img data-photo="${esc(d.photo)}" alt="Receipt photo"><span>Tap to enlarge</span></button>`);
+  if (d.photo) parts.push(`<button type="button" class="photo" data-act="lightbox" data-photo-id="${esc(d.photo)}"><img data-photo="${esc(d.photo)}" alt="Receipt photo"></button>`);
   if (d.note && mode === "review" && d.read_failed) parts.push(`<p class="hint warn">${esc(d.note)}</p>`);
-  if (mode === "review" && d.confidence === "low" && !d.read_failed) parts.push(`<p class="hint warn">Low confidence read. Check the total against the photo.</p>`);
-  if (mode === "review" && d.date_missing && !d.read_failed) parts.push(`<p class="hint">No date found on the receipt, so it's set to today. Change it if needed.</p>`);
+  if (mode === "review" && d.confidence === "low" && !d.read_failed) parts.push(`<p class="hint warn">Unsure read. Check the total.</p>`);
+  if (mode === "review" && d.date_missing && !d.read_failed) parts.push(`<p class="hint">No date found. Set to today.</p>`);
   parts.push(`<div id="ef-dup"></div>`);
   parts.push(`<label class="amt sm"><b>¥</b><input id="ef-amt" inputmode="numeric" pattern="[0-9]*" value="${esc(d.amount_jpy ?? "")}" aria-label="Total in yen"></label>`);
-  if (d.rate && mode === "edit") parts.push(`<p class="small muted">Logged at ¥${esc(d.rate)} per $1</p>`);
-  parts.push(`<div class="grid2"><label class="field"><span>Merchant</span><input class="input" id="ef-merchant" value="${esc(d.merchant || "")}"></label><label class="field"><span>Date (on the receipt)</span><input class="input" type="date" id="ef-date" value="${esc(d.date || today())}"></label></div>`);
-  parts.push(`<div class="field"><span>Budget line</span>${seg("ef-line", lines().map(l => [l.id, l.name]), d.line || "")}</div>`);
-  parts.push(`<div class="field" id="ef-sub-wrap" ${d.line === "food_transport" ? "" : "hidden"}><span>Food or transit</span>${seg("ef-sub", [["food", "Food"], ["transit", "Transit"]], d.sub || "food")}</div>`);
+  parts.push(`<div class="grid2"><label class="field"><span>Merchant</span><input class="input" id="ef-merchant" value="${esc(d.merchant || "")}"></label><label class="field"><span>Date</span><input class="input" type="date" id="ef-date" value="${esc(d.date || today())}"></label></div>`);
+  parts.push(`<div class="field"><span>Line</span>${seg("ef-line", lines().map(l => [l.id, l.name]), d.line || "")}</div>`);
+  parts.push(`<div class="field" id="ef-sub-wrap" ${d.line === "food_transport" ? "" : "hidden"}>${seg("ef-sub", [["food", "Food"], ["transit", "Transit"]], d.sub || "food")}</div>`);
   parts.push(`<div class="field"><span>Paid with</span>${seg("ef-pay", payOpts(), d.payment || "cash")}</div>`);
-  parts.push(`<div class="field"><span>Tax-free</span>${seg("ef-tax", [["none", "No"], ["at_store", "At store"], ["refund_pending", "Refund pending"]], d.tax_free || "none")}</div>`);
-  parts.push(`<label class="field" id="ef-refund-wrap" ${d.tax_free === "refund_pending" ? "" : "hidden"}><span>Refund due (¥)</span><input class="input" id="ef-refund" inputmode="numeric" value="${esc(d.refund_jpy || "")}"></label>`);
-  parts.push(`<div class="field"><span>Items${d.line === "cards" ? " (cost basis for inventory)" : ""}</span><div id="ef-items" style="display:flex;flex-direction:column;gap:6px">${(d.items || []).map(itemRow).join("")}</div><button type="button" class="btn ghost" data-act="item-add">Add item</button></div>`);
-  parts.push(`<label class="field"><span>Note</span><textarea class="input" id="ef-note">${esc(d.read_failed ? "" : d.note || "")}</textarea></label>`);
+  const nItems = (d.items || []).length;
+  parts.push(`<details class="more" ${d.tax_free && d.tax_free !== "none" ? "open" : ""}><summary>Tax-free, items, note${nItems ? ` · ${nItems} ${nItems === 1 ? "item" : "items"}` : ""}</summary><div>
+    <div class="field"><span>Tax-free</span>${seg("ef-tax", [["none", "No"], ["at_store", "At store"], ["refund_pending", "Refund"]], d.tax_free || "none")}</div>
+    <label class="field" id="ef-refund-wrap" ${d.tax_free === "refund_pending" ? "" : "hidden"}><span>Refund ¥</span><input class="input" id="ef-refund" inputmode="numeric" value="${esc(d.refund_jpy || "")}"></label>
+    <div class="field"><span>Items</span><div id="ef-items" style="display:flex;flex-direction:column;gap:6px">${(d.items || []).map(itemRow).join("")}</div><button type="button" class="btn ghost" data-act="item-add">Add item</button></div>
+    <label class="field"><span>Note</span><textarea class="input" id="ef-note">${esc(d.read_failed ? "" : d.note || "")}</textarea></label>
+    ${d.rate && mode === "edit" ? `<p class="small muted">Rate ¥${esc(d.rate)} per $1</p>` : ""}
+  </div></details>`);
   parts.push(`<p class="err" id="ef-err"></p>`);
   return parts.join("");
 }
 function bindEntryForm(sh, selfId) {
   const updDup = () => {
     const dup = findDup($("#ef-date").value, int($("#ef-amt").value), $("#ef-merchant").value, selfId);
-    $("#ef-dup").innerHTML = dup ? `<p class="hint warn"><b>Possible duplicate.</b> ${esc(dup.merchant || lineName(dup.line))} ${yen(dup.amount_jpy)} on ${fmtShort(dup.date)} is already saved.</p>` : "";
+    $("#ef-dup").innerHTML = dup ? `<p class="hint warn"><b>Already saved?</b> ${esc(dup.merchant || lineName(dup.line))} ${yen(dup.amount_jpy)}, ${fmtShort(dup.date)}</p>` : "";
   };
   const refund = $("#ef-refund");
   sh.addEventListener("input", e => {
@@ -957,7 +943,7 @@ function renderReview() {
   const d = ds.find(x => x.id === S.review?.id) || ds[0];
   const i = ds.indexOf(d);
   const sh = openSheet("review", `
-    <header class="sheet-head"><div><p class="kicker" id="rv-count">Receipt ${i + 1} of ${ds.length}</p><h2>Check and save</h2></div><button class="x" data-act="close">Close</button></header>
+    <header class="sheet-head"><div><p class="kicker" id="rv-count">Receipt ${i + 1} of ${ds.length}</p><h2>Review</h2></div><button class="x" data-act="close">Close</button></header>
     ${entryForm(d, "review")}
     <div class="actions-row"><button class="btn ghost danger-text" data-act="rv-discard">Discard</button><button class="btn" data-act="rv-skip">Skip</button><button class="btn primary" data-act="rv-save">Save</button></div>`);
   S.review = { id: d.id };
@@ -1009,9 +995,9 @@ async function reviewDiscard() {
 function openEdit(id) {
   const e = E().find(x => x.id === id); if (!e) return;
   const sh = openSheet("edit", `
-    <header class="sheet-head"><div><p class="kicker">${e.source === "scan" ? "Scanned receipt" : "Manual entry"}</p><h2>Edit entry</h2></div><button class="x" data-act="close">Close</button></header>
+    <header class="sheet-head"><h2>Edit</h2><button class="x" data-act="close">Close</button></header>
     ${entryForm(e, "edit")}
-    <div class="actions-row"><button class="btn ghost danger-text" data-act="ed-delete" data-id="${esc(id)}">Delete</button><button class="btn primary" data-act="ed-save" data-id="${esc(id)}">Save changes</button></div>`);
+    <div class="actions-row"><button class="btn ghost danger-text" data-act="ed-delete" data-id="${esc(id)}">Delete</button><button class="btn primary" data-act="ed-save" data-id="${esc(id)}">Save</button></div>`);
   bindEntryForm(sh, id);
 }
 function editSave(id) {
@@ -1036,18 +1022,16 @@ async function editDelete(id) {
 function openCash(tab = "in") {
   const m = metrics();
   const sh = openSheet("cash", `
-    <header class="sheet-head"><div><p class="kicker">Cash check</p><h2>${yen(m.expectedCash)} expected</h2></div><button class="x" data-act="close">Close</button></header>
-    <p class="small muted">${yen(m.cashIn)} withdrawn or exchanged, minus ${yen(m.cashSpent)} of cash spends you've logged.</p>
-    ${seg("cash-tab", [["in", "Add cash"], ["count", "Count wallet"]], tab)}
+    <header class="sheet-head"><div><p class="kicker">Expected</p><h2>${yen(m.expectedCash)}</h2></div><button class="x" data-act="close">Close</button></header>
+    ${seg("cash-tab", [["in", "Add cash"], ["count", "Count"]], tab)}
     <div id="cash-in" class="field" ${tab === "in" ? "" : "hidden"} style="gap:12px">
       <label class="amt sm"><b>¥</b><input id="cash-in-amt" inputmode="numeric" pattern="[0-9]*" aria-label="Yen added"></label>
-      <label class="field"><span>Where from</span><input class="input" id="cash-in-note" placeholder="7-Eleven ATM, exchange counter…"></label>
-      <p class="small muted">ATM withdrawals and exchanges add to cash on hand. They don't count as spending.</p>
+      <input class="input" id="cash-in-note" placeholder="From (ATM, exchange…)" aria-label="Where from">
       <button class="btn primary" data-act="cash-in-save">Add cash</button>
     </div>
     <div id="cash-count" class="field" ${tab === "count" ? "" : "hidden"} style="gap:12px">
-      <label class="field"><span>Yen in your wallet right now</span><span class="amt sm"><b>¥</b><input id="cash-count-amt" inputmode="numeric" pattern="[0-9]*" aria-label="Yen counted"></span></label>
-      <button class="btn primary" data-act="cash-count-save">Check against expected</button>
+      <label class="amt sm"><b>¥</b><input id="cash-count-amt" inputmode="numeric" pattern="[0-9]*" aria-label="Yen in wallet"></label>
+      <button class="btn primary" data-act="cash-count-save">Check</button>
       <div id="cash-result"></div>
     </div>
     <p class="err" id="cash-err"></p>`);
@@ -1074,13 +1058,13 @@ function cashCountSave() {
   const res = $("#cash-result");
   if (gap > 0) {
     res.innerHTML = `<div class="hint warn" style="display:flex;flex-direction:column;gap:10px">
-      <span><b>${yen(gap)} is unaccounted for.</b> That's probably vending machines or stalls that didn't get logged.</span>
+      <span><b>${yen(gap)} unlogged.</b></span>
       ${seg("gap-line", lines().map(l => [l.id, l.name]), "food_transport")}
       <div id="gap-sub-wrap">${seg("gap-sub", [["food", "Food"], ["transit", "Transit"]], "food")}</div>
-      <button class="btn primary" data-act="gap-log" data-gap="${gap}">Log ${yen(gap)} unlogged cash</button></div>`;
+      <button class="btn primary" data-act="gap-log" data-gap="${gap}">Log ${yen(gap)}</button></div>`;
   } else if (gap < 0) {
-    res.innerHTML = `<p class="hint">You have ${yen(-gap)} more than expected. A cash withdrawal or exchange may be missing.</p>`;
-  } else res.innerHTML = `<p class="hint"><b>Matches.</b> Every cash spend is logged.</p>`;
+    res.innerHTML = `<p class="hint">${yen(-gap)} extra. Missing a cash add?</p>`;
+  } else res.innerHTML = `<p class="hint"><b>Matches.</b></p>`;
 }
 function gapLog(gap) {
   const line = segVal("gap-line") || "food_transport";
